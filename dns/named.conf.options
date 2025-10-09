@@ -1,0 +1,10 @@
+options {
+    directory "/var/cache/bind";
+
+    recursion yes;
+    listen-on { any; };
+
+    forwarders {
+            127.0.0.11;
+    };
+};

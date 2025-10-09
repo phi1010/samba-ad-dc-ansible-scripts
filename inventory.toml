@@ -1,0 +1,15 @@
+[docker]
+[docker.hosts."ubuntu.localhost"]
+become_ansible_user = "ansible"
+become_ansible_password = "logmein"
+ansible_user = "ansible"
+ansible_password = "logmein"
+ansible_ssh_port = 2201
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+[docker.hosts."debian.localhost"]
+become_ansible_user = "ansible"
+become_ansible_password = "logmein"
+ansible_user = "ansible"
+ansible_password = "logmein"
+ansible_ssh_port = 2202
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'

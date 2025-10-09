@@ -1,0 +1,91 @@
+- name: Docker Playbook
+  hosts: all
+  become: true
+  vars:
+    administrator_password: 'P@ssw0rd'
+  serial:
+    - 1
+    - "50%"
+  max_fail_percentage: 0
+  tasks:
+    - name: Disable icinga warnings on all hosts
+      run_once: true
+      delegate_to: localhost
+      debug:
+        msg: "Disabling icinga warnings on for hosts {{ ansible_play_hosts }}"
+
+    - name: Upgrade
+      block:
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
+
+        - name: Find FSMO roles target
+          samba_tool_transfer_fsmo_roles:
+            away_from_adcs: "{{ ansible_play_batch }}"
+            domain: "ad.zam.haus"
+          register: fsmo_transfer_target
+        - name : Debug fsmo_transfer_target
+          debug:
+            var: fsmo_transfer_target
+        - name: Transfer FSMO roles if needed
+          delegate_to: "{{ fsmo_transfer_target.target }}"
+          samba_tool_transfer_fsmo_roles:
+            domain: "ad.zam.haus"
+            transfer: true
+            administrator_password: "{{ administrator_password }}"
+          when: fsmo_transfer_target.changed
+        - name: Do stuff with FSMO roles away
+          block:
+          - name: Stop Samba-Ad-Dc Service
+            service:
+              name: samba-ad-dc
+              state: stopped
+
+          - name: Upgrade all packages
+            apt:
+              upgrade: dist
+          always:
+            - name: Start Samba-Ad-Dc Service
+              service:
+                name: samba-ad-dc
+                state: started
+
+            - name: Wait for Samba-Ad-Dc Service to be started
+              wait_for:
+                port: 389
+                state: started
+                delay: 0
+                timeout: 10
+            - name: Transfer the FSMO roles back if needed
+              delegate_to: "{{ ansible_play_hosts_all[0] }}"
+              samba_tool_transfer_fsmo_roles:
+                domain: "ad.zam.haus"
+                transfer: true
+                administrator_password: "{{ administrator_password }}"
+
+
+        - name: Check Samba-Ad-Dc Service status
+          command: samba-tool drs showrepl
+          register: samba_tool_drs_showrepl
+          changed_when: false
+          failed_when: samba_tool_drs_showrepl.rc != 0 and "failed" not in samba_tool_drs_showrepl.stderr and "failed" not in samba_tool_drs_showrepl.stdout
+          until: samba_tool_drs_showrepl.failed == false
+          retries: 5
+          delay: 1
+
+        - name: Test the DNS
+          test_ad_dns:
+            adc_list: "{{ ansible_play_hosts_all }}"
+            domain: "ad.zam.haus"
+          register: dns_test_out
+
+
+      always:
+
+        - name: Enable icinga warnings on all hosts
+          run_once: true
+          delegate_to: localhost
+          debug:
+            msg: "Enabling icinga warnings on for hosts {{ ansible_play_hosts }}"

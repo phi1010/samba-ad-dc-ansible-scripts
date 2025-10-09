@@ -1,0 +1,288 @@
+- name: Docker Playbook
+  hosts: all
+  become: true
+  vars:
+    administrator_password: 'P@ssw0rd'
+  serial:
+    - 1
+    - "100%"
+  max_fail_percentage: 0
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install packages
+      apt:
+        pkg:
+          - samba-ad-dc
+          - dnsutils
+          - curl
+          - nano
+          - less
+          - tmux
+          - iproute2
+          - tree
+          - mtr
+          #- libpam-heimdal
+          - heimdal-clients
+          - ldb-tools
+          - winbind
+          #- libpam-winbind
+          - smbclient
+          - libnss-winbind
+          #- bind9
+          #- bind9utils
+          - dnsutils
+          - samba-ad-provision
+          - python3-dnspython
+
+    - name: Maintain uv
+      when: false
+      block:
+        - name: Check if uv exists in PATH
+          shell: "which uv"
+          ignore_errors: true
+          register: uv_which_out
+        - name: Upgrade uv
+          when: uv_which_out.rc == 0
+          shell: "uv self update"
+        - name: Install uv
+          when: uv_which_out.rc != 0
+          shell: "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR='/usr/local/bin' sh"
+
+    - name: Install first ADC
+      when: ansible_play_hosts_all[0] == inventory_hostname
+      block:
+        - name: Check if domain is already provisioned
+          check_mode: yes
+          ansible.builtin.lineinfile:
+            path: /etc/samba/smb.conf
+            regexp: "^\\s*server role\\s*=\\s*active directory domain controller\\s*$"
+            state: absent
+          register: domain_provisioned_check
+          changed_when: false
+        - name: Status
+          debug:
+            msg: |
+              Domain already provisioned = {{ domain_provisioned_check.found > 0 }}
+        - name: Provision the domain if not already done
+          when: domain_provisioned_check.found == 0
+          block:
+            - name: Delete smb.conf
+              shell: rm -f /etc/samba/smb.conf
+            - name: Provision
+              shell: |
+                samba-tool domain provision \
+                --domain AD \
+                --server-role dc \
+                --dns-backend SAMBA_INTERNAL \
+                --realm AD.ZAM.HAUS \
+                --adminpass {{ administrator_password|quote }}
+              register: provision_out
+              ignore_errors: true
+            - name: Debug provision output
+              debug:
+                msg: |
+                  stdout:
+                  {{ provision_out.stdout }}
+                  ====
+                  stderr:
+                  {{ provision_out.stderr }}
+            - name: Fail if provision failed
+              fail:
+                msg: "Provisioning the domain failed. See previous output."
+              when: provision_out.rc != 0
+            - name: Install kerberos config
+              copy:
+                src: /var/lib/samba/private/krb5.conf
+                dest: /etc/krb5.conf
+                remote_src: yes
+                force: yes
+            - name: Start Samba-Ad-Dc Service
+              service:
+                name: samba-ad-dc
+                state: started
+            - name: Wait for Samba-Ad-Dc Service to be started
+              wait_for:
+                port: 389
+                state: started
+                delay: 0
+                timeout: 5
+            - name: Get domain info
+              shell: "samba-tool domain info 127.0.0.1"
+              register: domain_info_out
+              ignore_errors: true
+            - name: Debug domain info output
+              debug:
+                msg: |
+                  stdout:
+                  {{ domain_info_out.stdout }}
+                  ====
+                  stderr:
+                  {{ domain_info_out.stderr }}
+            - name: Fail if domain info failed
+              fail:
+                msg: "Getting domain info failed. See previous output."
+              when: domain_info_out.rc != 0
+    - name: Join additional DCs
+      when: ansible_play_hosts_all[0] != inventory_hostname
+      block:
+        - name: Check if domain is already provisioned
+          check_mode: yes
+          ansible.builtin.lineinfile:
+            path: /etc/samba/smb.conf
+            regexp: "^\\s*server role\\s*=\\s*active directory domain controller\\s*$"
+            state: absent
+          register: domain_provisioned_check
+          changed_when: false
+        - name: Status
+          debug:
+            msg: |
+              Domain already provisioned = {{ domain_provisioned_check.found > 0 }}
+        - name: Join the domain if not already done
+          when: domain_provisioned_check.found == 0
+          block:
+            - name: Delete smb.conf
+              shell: rm -f /etc/samba/smb.conf
+            - name: Join the domain
+              shell: |
+                samba-tool domain join ad.zam.haus dc \
+                -U"administrator" --realm=ad.zam.haus --password={{ administrator_password|quote }}
+              register: join_out
+              ignore_errors: true
+            - name: Debug join output
+              debug:
+                msg: |
+                  stdout:
+                  {{ join_out.stdout | default('No output') }}
+                  ====
+                  stderr:
+                  {{ join_out.stderr | default('No output') }}
+            - name: Fail if joining the domain failed
+              fail:
+                msg: "Joining the domain failed. See previous output."
+              when: join_out.rc != 0
+            - name: Install kerberos config
+              copy:
+                src: /var/lib/samba/private/krb5.conf
+                dest: /etc/krb5.conf
+                remote_src: yes
+                force: yes
+            - name: Start Samba-Ad-Dc Service
+              service:
+                name: samba-ad-dc
+                state: started
+            - name: Wait for Samba-Ad-Dc Service to be started
+              wait_for:
+                port: 389
+                state: started
+                delay: 0
+                timeout: 5
+            - name: Get domain info
+              shell: "samba-tool domain info 127.0.0.1"
+              register: domain_info_out
+              ignore_errors: true
+            - name: Debug domain info output
+              debug:
+                msg: |
+                  stdout:
+                  {{ domain_info_out.stdout }}
+                  ====
+                  stderr:
+                  {{ domain_info_out.stderr }}
+            - name: Fail if domain info failed
+              fail:
+                msg: "Getting domain info failed. See previous output."
+              when: domain_info_out.rc != 0
+        - name: Add dns record
+          shell: |
+            samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.zam.haus ad.zam.haus A {{ inventory_hostname | quote }}
+          register: add_dns_out
+          changed_when: add_dns_out.rc == 0
+          failed_when: add_dns_out.rc != 0 and ('WERR_DNS_ERROR_RECORD_ALREADY_EXISTS' not in add_dns_out.stderr)
+        - name: Wait for Samba-Ad-Dc Service to sync
+          when: add_dns_out.changed
+          block:
+            - name: Check if Samba-Ad-Dc Service is started
+              wait_for:
+                port: 389
+                state: started
+                delay: 0
+                timeout: 5
+            - name: Check replication status
+              shell: "samba-tool drs showrepl {{ inventory_hostname | quote }}"
+              register: drs_out_local
+              ignore_errors: true
+              until: drs_out_local.stdout is not search('failed')
+              retries: 10
+              delay: 1
+              changed_when: false
+            - name: Check replication status
+              shell: "samba-tool drs showrepl {{ ansible_play_hosts_all[0] | quote }}"
+              register: drs_out_dns_fsmo_master
+              ignore_errors: true
+              until: drs_out_dns_fsmo_master.stdout is not search('failed')
+              retries: 10
+              delay: 1
+              changed_when: false
+            - debug:
+                msg: |
+                  Replication Status:
+                  ====
+                  Local:
+                  {{ drs_out_local.stdout | default('No output') }}
+                  ====
+                  Remote:
+                  {{ drs_out_dns_fsmo_master.stdout | default('No output') }}
+                  ====
+                  drs_good_local={{ drs_out_local.stdout is not search('failed') }}
+                  drs_good_remote={{ drs_out_dns_fsmo_master.stdout is not search('failed') }}
+                  dns_good={{ drs_out_local.stdout is not search('failed') and drs_out_dns_fsmo_master.stdout is not search('failed') }}
+
+            - name: Restart Samba-Ad-Dc Service to pick up the new DNS record
+              service:
+                name: samba-ad-dc
+                state: restarted
+            - name: Wait for Samba-Ad-Dc Service to be started
+              wait_for:
+                port: 389
+                state: started
+                delay: 0
+                timeout: 5
+        - name: Test the DNS
+          test_ad_dns:
+            adc_list: "{{ ansible_play_hosts_all }}"
+            domain: "ad.zam.haus"
+          register: dns_test_out
+
+        # samba-tool dns zonelist -U='AD\Administrator' --password='P@ssw0rd' ad.zam.haus
+        # samba-tool dns query -U='AD\Administrator' --password='P@ssw0rd' ad.zam.haus ad.zam.haus ad.zam.haus A
+        # samba-tool dns add -U='AD\Administrator' --password='P@ssw0rd' ad001.zam.haus ad.zam.haus ad.zam.haus A 10.5.0.3
+        # samba-tool drs showrepl ad001.srv.zam.haus
+    - name: Set samba settings
+      block:
+        - name: Insert block in [global] section
+          ansible.builtin.blockinfile:
+            path: /etc/samba/smb.conf
+            block: |
+              max log size = 10000
+              log level = 3 auth_audit:3 auth_json_audit:3 dsdb_json_audit:5 dsdb_password_json_audit:5 dsdb_group_json_audit:5 dsdb_transaction_json_audit:5
+            marker: "# {mark} ANSIBLE MANAGED BLOCK [global]"
+            insertafter: '^\[global\]'
+          register: set_samba_settings_global_out
+        - name: Restart Samba-Ad-Dc Service to pick up the new settings
+          when: set_samba_settings_global_out.changed
+          service:
+            name: samba-ad-dc
+            state: restarted
+        - name: Wait for Samba-Ad-Dc Service to be started
+          when: set_samba_settings_global_out.changed
+          wait_for:
+            port: 389
+            state: started
+            delay: 0
+            timeout: 5
+

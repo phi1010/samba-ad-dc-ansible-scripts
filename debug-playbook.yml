@@ -1,0 +1,29 @@
+- name: Ensure a line is present in a file on localhost
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: ...
+      when: false
+      block:
+        - name: Insert line in [global] section
+          ansible.builtin.lineinfile:
+            path: /home/phi1010/PycharmProjects/marimo/ansible-test/tmp/smb.conf
+            line: "your_new_line = value"
+            insertafter: '^\[global\]'
+            regexp: '^\s*your_new_line\s*='
+        - name: Insert line in [global] section
+          ansible.builtin.blockinfile:
+            path: /home/phi1010/PycharmProjects/marimo/ansible-test/tmp/smb.conf
+            block: |
+              setting1 = value1
+              setting2 = value2
+            marker: "# {mark} ANSIBLE MANAGED BLOCK GLOBAL"
+            insertafter: '^\[global\]'
+        - name: Insert line in [sysvol] section
+          ansible.builtin.blockinfile:
+            path: /home/phi1010/PycharmProjects/marimo/ansible-test/tmp/smb.conf
+            block: |
+              setting1 = value2
+              setting2 = value2
+            marker: "# {mark} ANSIBLE MANAGED BLOCK SYSVOL"
+            insertafter: '^\[sysvol\]'

@@ -2,13 +2,16 @@
   hosts: adcs
   become: true
   vars:
-    administrator_password: 'P@ssw0rd'
   serial:
     - 1
     - "100%"
   max_fail_percentage: 0
   tasks:
-
+    - name: Use Administrator password
+      fail:
+        msg: "You must define the 'administrator_password' variable, e.g. -e administrator_password='P@ssw0rd'"
+      when: administrator_password is not defined
+      failed_when: administrator_password is not defined
     - name: Update apt cache
       apt:
         update_cache: yes

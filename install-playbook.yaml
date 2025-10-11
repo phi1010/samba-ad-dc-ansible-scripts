@@ -80,9 +80,9 @@
         - name: Status
           debug:
             msg: |
-              Domain already provisioned = {{ domain_provisioned_check.found > 0 }}
+              Domain already provisioned = {{ (domain_provisioned_check.found | default(0)) > 0 }}
         - name: Provision the domain if not already done
-          when: domain_provisioned_check.found == 0
+          when: (domain_provisioned_check.found | default(0)) == 0
           block:
             - name: Delete smb.conf
               shell: rm -f /etc/samba/smb.conf
@@ -155,9 +155,9 @@
         - name: Status
           debug:
             msg: |
-              Domain already provisioned = {{ domain_provisioned_check.found > 0 }}
+              Domain already provisioned = {{ (domain_provisioned_check.found | default(0)) > 0 }}
         - name: Join the domain if not already done
-          when: domain_provisioned_check.found == 0
+          when: (domain_provisioned_check.found | default(0)) == 0
           block:
             - name: Delete smb.conf
               shell: rm -f /etc/samba/smb.conf

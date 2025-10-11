@@ -12,6 +12,36 @@
         msg: "You must define the 'administrator_password' variable, e.g. -e administrator_password='P@ssw0rd'"
       when: administrator_password is not defined
       failed_when: administrator_password is not defined
+
+    - name: Gather facts
+      setup:
+        gather_subset:
+          - all
+
+    - name: Gather facts
+      setup:
+        gather_subset:
+          - default_ipv4
+      loop: "{{ ansible_play_hosts }}"
+      loop_control:
+        loop_var: host
+      delegate_to: "{{ host }}"
+
+    - name: Create /etc/hosts
+      blockinfile:
+        block: |
+          {% for host in ansible_play_hosts %}
+          {% if 'ansible_default_ipv4' in hostvars[host] and 'address' in hostvars[host]['ansible_default_ipv4']  %}
+          {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ host }}
+          {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ hostvars[host]['inventory_hostname_short'] }}
+          {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ hostvars[host]['inventory_hostname_short'] }}.ad.srv.zam.haus
+          {% endif %}
+          {% endfor %}
+        path: /etc/hosts
+        create: yes
+        append_newline: yes
+        prepend_newline: yes
+
     - name: Update apt cache
       apt:
         update_cache: yes

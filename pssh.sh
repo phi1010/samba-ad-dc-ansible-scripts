@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-source env.sh
+. ./.env.sh
 docker compose up -d
-sshpass -p "$PASS" parallel-ssh -H ansible@localhost:2201 -H ansible@localhost:2202 -A -i "$*"
+sshpass -p "$DOCKER_CONTAINER_SSH_PASSWORD" parallel-ssh -H ansible@localhost:2201 -H ansible@localhost:2202 -A -i "$*"

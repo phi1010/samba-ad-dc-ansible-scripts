@@ -20,7 +20,7 @@ services:
     volumes:
       - ./dns/named.conf.options:/etc/bind/named.conf.options:ro
       - ./dns/named.conf.local:/etc/bind/named.conf.local:ro
-      - ./dns/db.ad.zam.haus:/etc/bind/zones/db.ad.zam.haus:ro
+      - ./dns/db.ad.srv.zam.haus:/etc/bind/zones/db.ad.srv.zam.haus:ro
     command: ["/usr/sbin/named", "-g", "-c", "/etc/bind/named.conf", "-u", "bind"]
   ubuntu-ansible:
     dns:

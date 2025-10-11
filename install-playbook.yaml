@@ -82,13 +82,13 @@
             msg: |
               Domain already provisioned = {{ (domain_provisioned_check.found | default(0)) > 0 }}
         - name: Provision the domain if not already done
-          when: (domain_provisioned_check.found | default(0)) == 0
+          when: (force_reinstall | default(false) | bool) or (domain_provisioned_check.found | default(0)) == 0
           block:
             - name: Delete smb.conf
               shell: rm -f /etc/samba/smb.conf
             - name: Provision
               shell: |
-                timeout 30 \
+                timeout 120 \
                 samba-tool domain provision \
                 --domain AD \
                 --server-role dc \
@@ -141,6 +141,22 @@
               fail:
                 msg: "Getting domain info failed. See previous output."
               when: domain_info_out.rc != 0
+            - name: Add dns record for <hostname>.ad.srv.zam.haus
+              shell: |
+                samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus {{ inventory_hostname_short | quote }}.ad.srv.zam.haus A {{ ansible_default_ipv4.address | quote }}
+              register: add_dns_out
+              changed_when: add_dns_out.rc == 0
+              failed_when: add_dns_out.rc != 0 and ('WERR_DNS_ERROR_RECORD_ALREADY_EXISTS' not in add_dns_out.stderr)
+            - name: Restart Samba-Ad-Dc Service
+              service:
+                name: samba-ad-dc
+                state: restarted
+            - name: Wait for Samba-Ad-Dc Service to be started
+              wait_for:
+                port: 389
+                state: started
+                delay: 0
+                timeout: 5
     - name: Join additional DCs
       when: ansible_play_hosts_all[0] != inventory_hostname
       block:
@@ -157,13 +173,13 @@
             msg: |
               Domain already provisioned = {{ (domain_provisioned_check.found | default(0)) > 0 }}
         - name: Join the domain if not already done
-          when: (domain_provisioned_check.found | default(0)) == 0
+          when: (force_reinstall | default(false) | bool) or (domain_provisioned_check.found | default(0)) == 0
           block:
             - name: Delete smb.conf
               shell: rm -f /etc/samba/smb.conf
             - name: Join the domain
               shell: |
-                timeout 30 \
+                timeout 120 \
                 samba-tool domain join ad.srv.zam.haus dc \
                 -U"administrator" --realm=ad.srv.zam.haus --password={{ administrator_password|quote }}
               register: join_out
@@ -212,14 +228,20 @@
               fail:
                 msg: "Getting domain info failed. See previous output."
               when: domain_info_out.rc != 0
-        - name: Add dns record
+        - name: Add dns record for ad.srv.zam.haus
           shell: |
             samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus ad.srv.zam.haus A {{ ansible_default_ipv4.address | quote }}
           register: add_dns_out
           changed_when: add_dns_out.rc == 0
           failed_when: add_dns_out.rc != 0 and ('WERR_DNS_ERROR_RECORD_ALREADY_EXISTS' not in add_dns_out.stderr)
+        - name: Add dns record for <hostname>.ad.srv.zam.haus
+          shell: |
+            samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus {{ inventory_hostname_short | quote }}.ad.srv.zam.haus A {{ ansible_default_ipv4.address | quote }}
+          register: add_dns_out2
+          changed_when: add_dns_out.rc == 0
+          failed_when: add_dns_out.rc != 0 and ('WERR_DNS_ERROR_RECORD_ALREADY_EXISTS' not in add_dns_out.stderr)
         - name: Wait for Samba-Ad-Dc Service to sync
-          when: add_dns_out.changed
+          when: add_dns_out.changed or add_dns_out2.changed
           block:
             - name: Check if Samba-Ad-Dc Service is started
               wait_for:

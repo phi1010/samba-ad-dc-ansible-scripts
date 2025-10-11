@@ -1,6 +1,6 @@
-zone "ad.zam.haus" {
+zone "ad.srv.zam.haus" {
     #type master;
-    #file "/etc/bind/zones/db.ad.zam.haus";
+    #file "/etc/bind/zones/db.ad.srv.zam.haus";
     type forward;
     forward only;
     forwarders {

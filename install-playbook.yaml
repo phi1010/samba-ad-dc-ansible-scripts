@@ -88,6 +88,7 @@
               shell: rm -f /etc/samba/smb.conf
             - name: Provision
               shell: |
+                timeout 30 \
                 samba-tool domain provision \
                 --domain AD \
                 --server-role dc \
@@ -162,8 +163,9 @@
               shell: rm -f /etc/samba/smb.conf
             - name: Join the domain
               shell: |
-                samba-tool domain join ad.zam.haus dc \
-                -U"administrator" --realm=ad.zam.haus --password={{ administrator_password|quote }}
+                timeout 30 \
+                samba-tool domain join ad.srv.zam.haus dc \
+                -U"administrator" --realm=ad.srv.zam.haus --password={{ administrator_password|quote }}
               register: join_out
               ignore_errors: true
             - name: Debug join output

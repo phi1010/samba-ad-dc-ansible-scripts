@@ -93,7 +93,7 @@
                 --domain AD \
                 --server-role dc \
                 --dns-backend SAMBA_INTERNAL \
-                --realm AD.ZAM.HAUS \
+                --realm AD.SRV.ZAM.HAUS \
                 --adminpass {{ administrator_password|quote }}
               register: provision_out
               ignore_errors: true
@@ -214,7 +214,7 @@
               when: domain_info_out.rc != 0
         - name: Add dns record
           shell: |
-            samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.zam.haus ad.zam.haus A {{ inventory_hostname | quote }}
+            samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus ad.srv.zam.haus A {{ ansible_default_ipv4.address | quote }}
           register: add_dns_out
           changed_when: add_dns_out.rc == 0
           failed_when: add_dns_out.rc != 0 and ('WERR_DNS_ERROR_RECORD_ALREADY_EXISTS' not in add_dns_out.stderr)
@@ -270,7 +270,7 @@
         - name: Test the DNS
           test_ad_dns:
             adc_list: "{{ ansible_play_hosts_all }}"
-            domain: "ad.zam.haus"
+            domain: "ad.srv.zam.haus"
           register: dns_test_out
 
         # samba-tool dns zonelist -U='AD\Administrator' --password='P@ssw0rd' ad.zam.haus

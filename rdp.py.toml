@@ -1,0 +1,8 @@
+[default_credentials]
+[default_credentials.'.']
+username = "ansible"
+password = "P@ssw0rd"
+[default_credentials.'AD']
+username = "Administrator"
+password = "P@ssw0rd"
+

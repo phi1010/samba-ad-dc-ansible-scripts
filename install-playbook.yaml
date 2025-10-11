@@ -1,5 +1,5 @@
 - name: Docker Playbook
-  hosts: all
+  hosts: adcs
   become: true
   vars:
     administrator_password: 'P@ssw0rd'

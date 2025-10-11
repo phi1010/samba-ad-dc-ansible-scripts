@@ -1,0 +1,77 @@
+- name: Docker Playbook
+  hosts: windows
+  #become: true
+  vars:
+    force_recreation_if_exists: true
+    administrator_password: 'P@ssw0rd'
+  tasks:
+    - name: Check if the host is already joined
+      check_mode: yes
+      microsoft.ad.membership:
+        state: domain
+        dns_domain_name: "ad.zam.haus"
+        domain_admin_user: "Administrator"
+        domain_admin_password: "JUST HERE TO AVOID EMPTY PASSWORD ERROR"
+      register: domain_check
+    - debug:
+        var: domain_check
+    - name: Join the host to the domain
+      when: domain_check.changed
+      block:
+        - name: Find out the hostname with powershell
+          ansible.windows.win_shell: |
+            $env:COMPUTERNAME
+          register: hostname_result
+        - name: Extract the computer name
+          ansible.builtin.set_fact:
+            computer_name: "{{ hostname_result.stdout_lines[0] }}"
+        - name: Generate a random password for the computer account
+          ansible.builtin.set_fact:
+            computer_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'ascii_uppercase', 'digits'], length=20) }}"
+        - debug:
+            var: to_debug
+          vars:
+            to_debug:
+              computer_name: "{{ computer_name }}"
+              computer_password: "{{ computer_password }}"
+        - name: Delete a computer object on the first host of the adcs group if it already exists
+          when: force_recreation_if_exists
+          become: true
+          delegate_to: "{{ groups['adcs'] | first }}"
+          shell: |
+            samba-tool computer delete {{ computer_name | quote }}
+          register: delete_computer_result
+          failed_when: false
+          changed_when: delete_computer_result.rc == 0
+        - name: Sleep for 5 seconds to ensure the deletion is processed
+          pause:
+            seconds: 5
+          when: delete_computer_result.changed
+        - name: Create a computer object on the first host of the adcs group
+          become: true
+          delegate_to: "{{ groups['adcs'] | first }}"
+          shell: |
+            samba-tool computer create {{ computer_name | quote }}
+        - name: Set the computers password on the first host of the adcs group
+          become: true
+          delegate_to: "{{ groups['adcs'] | first }}"
+          shell: |
+            samba-tool user setpassword {{ computer_name| quote }}\$ --newpassword {{ computer_password | quote }}
+        - name: Sleep for 5 seconds to ensure the creation is processed
+          pause:
+            seconds: 5
+        - name: Join the domain
+          ansible.windows.win_shell: |
+            $joinCred = New-Object pscredential -ArgumentList ([pscustomobject]@{
+                UserName = $null
+                Password = (ConvertTo-SecureString -String {{ computer_password | quote }} -AsPlainText -Force)[0]
+            })
+            $addComputerSplat = @{
+                DomainName = "ad.zam.haus"
+                Options = 'UnsecuredJoin', 'PasswordPass'
+                Credential = $joinCred
+                Restart = $true
+                Force = $true
+            }
+            Add-Computer @addComputerSplat
+

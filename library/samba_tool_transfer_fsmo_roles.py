@@ -80,7 +80,7 @@ def run_module():
             role: (owner, get_ips(owner + "." + domain, "A", domain_ip))
             for role, owner in fsmoroles.items()
         }
-        fsmoroles_changes={
+        fsmoroles_changes = {
             role: (ips[0], target)
             for role, (owner, ips) in fsmoroles.items()
             if target not in ips and ips
@@ -88,12 +88,6 @@ def run_module():
         result['fsmoroles'] = fsmoroles
         result['fsmoroles_changes'] = fsmoroles_changes
         result['changed'] = bool(fsmoroles_changes)
-
-        if module.check_mode:
-            module.exit_json(**result)
-
-        if not transfer:
-            module.exit_json(**result)
 
         role_dict = {
             "RidAllocationMasterRole": "rid",
@@ -105,15 +99,31 @@ def run_module():
             "ForestDnsZonesMasterRole": "forestdns"
         }
 
+        if set(fsmoroles.keys()) != set(role_dict.keys()):
+            module.fail_json(
+                error=(
+                        "Unexpected/Missing FSMO roles: "
+                        + ", ".join(fsmoroles.keys())
+                        + ";\nExpected: "
+                        + ", ".join(role_dict.keys())
+                ),
+                **result)
+        if module.check_mode:
+            module.exit_json(**result)
+
+        if not transfer:
+            module.exit_json(**result)
+
         for role in fsmoroles_changes:
-            module.run_command(["samba-tool", "fsmo", "transfer", "--role", role_dict[role], "-U", "AD\\Administrator", "--password", administrator_password], check_rc=True, encoding="utf-8")
+            module.run_command(
+                ["samba-tool", "fsmo", "transfer", "--role", role_dict[role], "-U", "AD\\Administrator", "--password",
+                 administrator_password], check_rc=True, encoding="utf-8")
     except Exception:
         # result["locals"] = pprint.pformat(locals(), indent=4)
         module.fail_json(error=traceback.format_exc(), **result)
     else:
         # result["locals"] = pprint.pformat(locals(), indent=4)
         pass
-
 
     # No change ops for this module, just a test
     result['changed'] = False

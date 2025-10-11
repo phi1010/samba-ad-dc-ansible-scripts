@@ -1,3 +1,8 @@
+- name: Gather all facts first
+  hosts: adcs
+  gather_facts: yes
+  tasks: []
+
 - name: Docker Playbook
   hosts: adcs
   become: true
@@ -13,20 +18,6 @@
       when: administrator_password is not defined
       failed_when: administrator_password is not defined
 
-    - name: Gather facts
-      setup:
-        gather_subset:
-          - all
-
-    - name: Gather facts
-      setup:
-        gather_subset:
-          - default_ipv4
-      loop: "{{ ansible_play_hosts }}"
-      loop_control:
-        loop_var: host
-      delegate_to: "{{ host }}"
-
     - name: Create /etc/hosts
       blockinfile:
         block: |
@@ -35,6 +26,7 @@
           {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ host }}
           {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ hostvars[host]['inventory_hostname_short'] }}
           {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ hostvars[host]['inventory_hostname_short'] }}.ad.srv.zam.haus
+          {{ hostvars[host]['ansible_default_ipv4']['address'] }}  ad.srv.zam.haus
           {% endif %}
           {% endfor %}
         path: /etc/hosts

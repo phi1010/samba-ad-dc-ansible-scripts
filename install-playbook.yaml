@@ -42,6 +42,16 @@
           - samba-ad-provision
           - python3-dnspython
 
+    - name: Stop conflicting services
+      service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+      loop:
+        - smbd
+        - nmbd
+        - winbind
+
     - name: Maintain uv
       when: false
       block:

@@ -25,6 +25,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
  "New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22" ^
  >> C:\install.txt
 
+echo Apply the firewall rule to all profiles >> C:\install.txt
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "Set-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -Profile Domain,Private,Public" ^
+ >> C:\install.txt
+
 echo Set the default shell to PowerShell >> C:\install.txt
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 "$shellParams = @{ Path = 'HKLM:\SOFTWARE\OpenSSH'; Name = 'DefaultShell'; Value = 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'; PropertyType = 'String'; Force = $true}; New-ItemProperty @shellParams" ^

@@ -64,6 +64,7 @@
           - dnsutils
           - samba-ad-provision
           - python3-dnspython
+          - rsync
 
     - name: Stop conflicting services
       service:
@@ -320,6 +321,9 @@
             adc_list: "{{ ansible_play_hosts_all }}"
             domain: "ad.srv.zam.haus"
           register: dns_test_out
+          retries: 5
+          delay: 1
+          until: dns_test_out.failed == false
 
         # samba-tool dns zonelist -U='AD\Administrator' --password='P@ssw0rd' ad.zam.haus
         # samba-tool dns query -U='AD\Administrator' --password='P@ssw0rd' ad.zam.haus ad.zam.haus ad.zam.haus A
@@ -425,10 +429,7 @@
                 | grep "memberOf: CN=Domain Admins,CN=Users,DC=ad,DC=srv,DC=zam,DC=haus"
           changed_when: false
         - name: Test kerberos
-          # TODO when: inventory_hostname == ansible_play_hosts_all[0]
-          # TODO smbclient -L only works from the first ADC (which is ubuntu) for now.
-          # Heimdal is missing the kvno tool with verbose output to debug this.
-          # Try this again with a MIT kerberos client, or with a fixed /etc/hosts on prod.
+          # This does not work with --use-kerberos=required in Debian / with smbclient 4.22. It works with --use-kerberos=desired. Ubuntu supports both with smbclient 4.19.
           block:
             - name : Get kerberos ticket
               args:
@@ -437,7 +438,7 @@
                 set -euxo pipefail
                 kinit --password-file=<(echo {{ administrator_password|quote }}) Administrator@AD.SRV.ZAM.HAUS
                 klist
-                smbclient -L {{ ansible_hostname|quote }}.ad.srv.zam.haus --use-kerberos required -N
+                smbclient -L {{ ansible_hostname|quote }}.ad.srv.zam.haus --use-kerberos desired -N
               changed_when: false
           always:
             - name: Destroy kerberos ticket

@@ -93,3 +93,21 @@
           delegate_to: localhost
           debug:
             msg: "Enabling icinga warnings on for hosts {{ ansible_play_hosts }}"
+
+    - name: Synchronize GPOs
+      block:
+        - name: Copy GPOs from the first host of the adcs group to the localhost
+          synchronize:
+            src: "/var/lib/samba/sysvol/ad.srv.zam.haus/"
+            dest: "./tmp/sysvol/"
+            mode: pull
+            archive: true
+          when: inventory_hostname == ansible_play_hosts_all[0]
+        - name: Copy GPOs to each other host of the adcs group from the localhost
+          synchronize:
+            src: "./tmp/sysvol/"
+            dest: "/var/lib/samba/sysvol/ad.srv.zam.haus/"
+            mode: push
+            archive: true
+          when: inventory_hostname != ansible_play_hosts_all[0]
+        - name: Repair the ACLs of the GPOs

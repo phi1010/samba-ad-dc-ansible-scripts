@@ -1,7 +1,7 @@
 - name: Gather all facts first
   hosts: adcs
   gather_facts: yes
-  tasks: []
+  tasks: [ ]
 
 - name: Docker Playbook
   hosts: adcs

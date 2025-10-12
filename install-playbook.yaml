@@ -377,30 +377,56 @@
         enabled: yes
 
     - name: Install and configure NTP
+      tags: [ntp]
       when: inventory_hostname == ansible_play_hosts_all[0]
       block:
         - name: Install ntpd
           apt:
             pkg:
               - ntpsec
+
         - name: configure ntpd
           template:
             src: templates/ntp.conf.j2
-            dest: /etc/ntp.conf
+            dest: /etc/ntpsec/ntp.conf
             mode: '0644'
             owner: root
             group: root
+
         - name: Give access to sign socket
           shell: |
             chgrp ntpsec /var/lib/samba/ntp_signd
             chmod g+rx /var/lib/samba/ntp_signd
           ignore_errors: true
           failed_when: false
+
+        - name: Create log directory /var/log/ntpsec/
+          shell: |
+            mkdir -p /var/log/ntpsec/
+            chown ntpsec:ntpsec /var/log/ntpsec/
+            chmod 750 /var/log/ntpsec/
+
         - name: Restart ntpd
           service:
             name: ntpsec
             state: restarted
             enabled: yes
+
+        - name: Wait for ntpd to be started
+          wait_for:
+            port: 123
+            state: started
+            delay: 0
+            timeout: 5
+          ignore_errors: "{{ 'docker' in group_names }}"
+
+        - name: Start daemon manually when in docker and when necessary
+          when: "'docker' in group_names"
+          shell: |
+            pgrep ntpd || ntpd -gu ntpsec:ntpsec -c /etc/ntpsec/ntp.conf
+          register: start_ntpd_out
+          changed_when: start_ntpd_out.rc == 0
+          failed_when: start_ntpd_out.rc != 0 and 'already running' not in start_ntpd_out.stderr
         # ntpq -pn
         # ntpmon localhost
 

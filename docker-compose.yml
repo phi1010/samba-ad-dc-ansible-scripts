@@ -13,8 +13,7 @@ services:
         aliases:
           - "dns.srv.zam.haus"
         ipv4_address: 10.5.0.100
-    cap_add:
-      - SYS_ADMIN
+    privileged: true
     environment:
       TZ: UTC
     volumes:
@@ -40,8 +39,7 @@ services:
           - "ad.srv.zam.haus"
           - "ad001.srv.zam.haus"
         ipv4_address: 10.5.0.2
-    cap_add:
-      - SYS_ADMIN
+    privileged: true
   debian-ansible:
     dns:
       - "10.5.0.100"
@@ -60,8 +58,7 @@ services:
           - "ad.srv.zam.haus"
           - "ad002.srv.zam.haus"
         ipv4_address: 10.5.0.3
-    cap_add:
-      - SYS_ADMIN
+    privileged: true
   windows:
     image: dockurr/windows
     container_name: windows

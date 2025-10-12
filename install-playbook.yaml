@@ -44,14 +44,7 @@
       apt:
         pkg:
           - samba-ad-dc
-          - dnsutils
-          - curl
-          - nano
-          - less
-          - tmux
-          - iproute2
-          - tree
-          - mtr
+          - samba-ad-provision
           #- libpam-heimdal
           - heimdal-clients
           - ldb-tools
@@ -61,10 +54,17 @@
           - libnss-winbind
           #- bind9
           #- bind9utils
-          - dnsutils
-          - samba-ad-provision
-          - python3-dnspython
+          - nano
+          - tmux
+          - curl
           - rsync
+          - iproute2
+          - inetutils-ping
+          - mtr
+          - tree
+          - less
+          - dnsutils
+          - python3-dnspython
 
     - name: Stop conflicting services
       service:

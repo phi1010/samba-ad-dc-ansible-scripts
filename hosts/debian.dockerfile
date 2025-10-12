@@ -8,5 +8,6 @@ RUN  echo 'ansible:logmein' | chpasswd
 # This keeps the host key the same across container restarts
 RUN service ssh start
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+WORKDIR /home/ansible/
 EXPOSE 22
 CMD ["/usr/sbin/sshd","-D"]

@@ -1,13 +1,17 @@
 - name: Docker Playbook
   hosts: adcs
   become: true
-  vars:
-    administrator_password: 'P@ssw0rd'
   serial:
     - 1
     - "50%"
   max_fail_percentage: 0
   tasks:
+    - name: Use Administrator password
+      fail:
+        msg: "You must define the 'administrator_password' variable, e.g. -e administrator_password='P@ssw0rd'"
+      when: administrator_password is not defined
+      failed_when: administrator_password is not defined
+
     - name: Disable icinga warnings on all hosts
       run_once: true
       delegate_to: localhost

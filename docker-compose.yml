@@ -47,7 +47,7 @@ services:
       - "10.5.0.100"
     build:
       context: ./hosts
-      dockerfile: ubuntu.dockerfile # TODO change to debian.dockerfile
+      dockerfile: debian.dockerfile
     ports:
       - "2202:22"
     container_name: debian-ansible

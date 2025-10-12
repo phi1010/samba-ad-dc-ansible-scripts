@@ -21,7 +21,7 @@
     - name: Create /etc/hosts
       blockinfile:
         block: |
-          {% for host in ansible_play_hosts %}
+          {% for host in ansible_play_hosts_all %}
           {% if 'ansible_default_ipv4' in hostvars[host] and 'address' in hostvars[host]['ansible_default_ipv4']  %}
           {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ host }}
           {{ hostvars[host]['ansible_default_ipv4']['address'] }}  {{ hostvars[host]['inventory_hostname_short'] }}
@@ -373,12 +373,34 @@
         enabled: yes
 
     - name: Install and configure NTP
+      when: inventory_hostname == ansible_play_hosts_all[0]
       block:
         - name: Install ntpd
-          debug:
-            msg: "TODO"
+          apt:
+            pkg:
+              - ntpsec
+        - name: configure ntpd
+          template:
+            src: templates/ntp.conf.j2
+            dest: /etc/ntp.conf
+            mode: '0644'
+            owner: root
+            group: root
+        - name: Give access to sign socket
+          shell: |
+            chgrp ntpsec /var/lib/samba/ntp_signd
+            chmod g+rx /var/lib/samba/ntp_signd
+          ignore_errors: true
+          failed_when: false
+        - name: Restart ntpd
+          service:
+            name: ntpsec
+            state: restarted
+            enabled: yes
+        # ntpq -pn
+        # ntpmon localhost
 
-    - name: Test shares and kerberos
+    - name: Test shares, LDAP and kerberos
       block:
         - name: Test share with machine password
           shell: |
@@ -394,14 +416,30 @@
             smbclient -L {{ inventory_hostname | quote }} -U 'AD\Administrator' --password {{ administrator_password|quote }} | grep sysvol
             smbclient -L {{ inventory_hostname | quote }} -U 'AD\Administrator' --password {{ administrator_password|quote }} | grep netlogon
           changed_when: false
-        - name : Get kerberos ticket
+        - name: Test LDAP with admin password
           args:
             executable: /bin/bash
           shell: |
             set -euxo pipefail
-            kinit --password-file=<(echo {{ administrator_password|quote }}) Administrator@AD.SRV.ZAM.HAUS
-            klist
+            ldbsearch -H ldap://ad.srv.zam.haus "cn=administrator" -U AD\\Administrator --password {{ administrator_password|quote }} \
+                | grep "memberOf: CN=Domain Admins,CN=Users,DC=ad,DC=srv,DC=zam,DC=haus"
           changed_when: false
+        - name: Test kerberos
+          block:
+            - name : Get kerberos ticket
+              args:
+                executable: /bin/bash
+              shell: |
+                set -euxo pipefail
+                kinit --password-file=<(echo {{ administrator_password|quote }}) Administrator@AD.SRV.ZAM.HAUS
+                klist
+              # TODO: fails: smbclient -L ad.srv.zam.haus --use-kerberos required -N
+              changed_when: false
+          always:
+            - name: Destroy kerberos ticket
+              shell: kdestroy
+              ignore_errors: true
+              changed_when: false
 
 
 

@@ -8,6 +8,10 @@ How to use:
 ./build.sh
 ./ansible-playbook.sh install-playbook.yaml
 ./ansible-playbook.sh maintain-playbook.yaml
-./rdp.py --domain "." to log in with the local user to the windows machine
-./rdp.py --domain "AD" to log in with the AD user to the windows machine
+firefox http://127.0.0.1:8006/
+
+# After windows has been installed:
+./rdp.py --domain "." # to log in with the local user to the windows machine
+./ansible-playbook.sh client-playbook.yaml
+./rdp.py --domain "AD" # to log in with the AD user to the windows machine
 ```

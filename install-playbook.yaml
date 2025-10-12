@@ -371,3 +371,60 @@
       service:
         name: samba-ad-dc
         enabled: yes
+
+    - name: Install and configure NTP
+      block:
+        - name: Install ntpd
+          debug:
+            msg: "TODO"
+
+    - name: Test shares and kerberos
+      block:
+        - name: Test share with machine password
+          shell: |
+            smbclient -L {{ inventory_hostname | quote }} -P
+          changed_when: false
+        - name: Test share with admin password
+          args:
+            executable: /bin/bash
+          shell: |
+            set -euxo pipefail
+            smbclient -L {{ inventory_hostname | quote }} -U 'AD\Administrator' --password {{ administrator_password|quote }}
+            smbclient -L {{ inventory_hostname | quote }} -U 'AD\Administrator' --password {{ administrator_password|quote }} | grep IPC
+            smbclient -L {{ inventory_hostname | quote }} -U 'AD\Administrator' --password {{ administrator_password|quote }} | grep sysvol
+            smbclient -L {{ inventory_hostname | quote }} -U 'AD\Administrator' --password {{ administrator_password|quote }} | grep netlogon
+          changed_when: false
+        - name : Get kerberos ticket
+          args:
+            executable: /bin/bash
+          shell: |
+            set -euxo pipefail
+            kinit --password-file=<(echo {{ administrator_password|quote }}) Administrator@AD.SRV.ZAM.HAUS
+            klist
+          changed_when: false
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

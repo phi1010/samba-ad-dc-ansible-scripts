@@ -33,6 +33,7 @@
         create: yes
         append_newline: yes
         prepend_newline: yes
+      when: "'docker' not in group_names"
 
     - name: Update apt cache
       apt:
@@ -164,6 +165,7 @@
                 msg: "Getting domain info failed. See previous output."
               when: domain_info_out.rc != 0
             - name: Add dns record for <hostname>.ad.srv.zam.haus
+              when: "'docker' not in group_names"
               shell: |
                 samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus {{ inventory_hostname_short | quote }}.ad.srv.zam.haus A {{ ansible_default_ipv4.address | quote }}
               register: add_dns_out
@@ -179,6 +181,7 @@
                 state: started
                 delay: 0
                 timeout: 5
+
     - name: Join additional DCs
       when: ansible_play_hosts_all[0] != inventory_hostname
       block:
@@ -252,11 +255,12 @@
               when: domain_info_out.rc != 0
         - name: Add dns record for ad.srv.zam.haus
           shell: |
-            samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus ad.srv.zam.haus A {{ ansible_default_ipv4.address | quote }}
+            samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus ad.srv.zam.haus A {{ (ansible_default_ipv4.address if 'docker' not in group_names else inventory_hostname) | quote }}
           register: add_dns_out
           changed_when: add_dns_out.rc == 0
           failed_when: add_dns_out.rc != 0 and ('WERR_DNS_ERROR_RECORD_ALREADY_EXISTS' not in add_dns_out.stderr)
         - name: Add dns record for <hostname>.ad.srv.zam.haus
+          when: "'docker' not in group_names"
           shell: |
             samba-tool dns add -U='AD\Administrator' --password={{ administrator_password|quote }} ad001.srv.zam.haus ad.srv.zam.haus {{ inventory_hostname_short | quote }}.ad.srv.zam.haus A {{ ansible_default_ipv4.address | quote }}
           register: add_dns_out2
@@ -321,6 +325,7 @@
         # samba-tool dns query -U='AD\Administrator' --password='P@ssw0rd' ad.zam.haus ad.zam.haus ad.zam.haus A
         # samba-tool dns add -U='AD\Administrator' --password='P@ssw0rd' ad001.zam.haus ad.zam.haus ad.zam.haus A 10.5.0.3
         # samba-tool drs showrepl ad001.srv.zam.haus
+
     - name: Set samba settings
       block:
         - name: Insert block in [global] section

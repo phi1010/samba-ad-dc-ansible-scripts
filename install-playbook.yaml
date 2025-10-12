@@ -400,12 +400,6 @@
           ignore_errors: true
           failed_when: false
 
-        - name: Create log directory /var/log/ntpsec/
-          shell: |
-            mkdir -p /var/log/ntpsec/
-            chown ntpsec:ntpsec /var/log/ntpsec/
-            chmod 750 /var/log/ntpsec/
-
         - name: Restart ntpd
           service:
             name: ntpsec

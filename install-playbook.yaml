@@ -425,6 +425,10 @@
                 | grep "memberOf: CN=Domain Admins,CN=Users,DC=ad,DC=srv,DC=zam,DC=haus"
           changed_when: false
         - name: Test kerberos
+          when: inventory_hostname == ansible_play_hosts_all[0]
+          # TODO only works on first ADC for now.
+          # Heimdal is missing the kvno tool with verbose output to debug this.
+          # Try this again with a MIT kerberos client, or with a fixed /etc/hosts on prod.
           block:
             - name : Get kerberos ticket
               args:
@@ -433,7 +437,7 @@
                 set -euxo pipefail
                 kinit --password-file=<(echo {{ administrator_password|quote }}) Administrator@AD.SRV.ZAM.HAUS
                 klist
-              # TODO: fails: smbclient -L ad.srv.zam.haus --use-kerberos required -N
+                smbclient -L {{ ansible_hostname|quote }}.ad.srv.zam.haus --use-kerberos required -N
               changed_when: false
           always:
             - name: Destroy kerberos ticket

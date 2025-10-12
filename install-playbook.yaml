@@ -425,7 +425,7 @@
                 | grep "memberOf: CN=Domain Admins,CN=Users,DC=ad,DC=srv,DC=zam,DC=haus"
           changed_when: false
         - name: Test kerberos
-          when: inventory_hostname == ansible_play_hosts_all[0]
+          # TODO when: inventory_hostname == ansible_play_hosts_all[0]
           # TODO smbclient -L only works from the first ADC (which is ubuntu) for now.
           # Heimdal is missing the kvno tool with verbose output to debug this.
           # Try this again with a MIT kerberos client, or with a fixed /etc/hosts on prod.

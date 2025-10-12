@@ -9,7 +9,7 @@
       check_mode: yes
       microsoft.ad.membership:
         state: domain
-        dns_domain_name: "ad.zam.haus"
+        dns_domain_name: "ad.srv.zam.haus"
         domain_admin_user: "Administrator"
         domain_admin_password: "JUST HERE TO AVOID EMPTY PASSWORD ERROR"
       register: domain_check
@@ -67,7 +67,7 @@
                 Password = (ConvertTo-SecureString -String {{ computer_password | quote }} -AsPlainText -Force)[0]
             })
             $addComputerSplat = @{
-                DomainName = "ad.zam.haus"
+                DomainName = "ad.srv.zam.haus"
                 Options = 'UnsecuredJoin', 'PasswordPass'
                 Credential = $joinCred
                 Restart = $true

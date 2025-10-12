@@ -350,3 +350,24 @@
             delay: 0
             timeout: 5
 
+    - name: Relax password policy
+      block:
+        - name: Set password policy
+          shell: |
+            samba-tool domain passwordsettings pso create UsersPSO 100 --max-pwd-age=36500
+          register: set_password_policy_out
+          ignore_errors: true
+          changed_when: set_password_policy_out.rc == 0 and 'PSO successfully created' in set_password_policy_out.stderr
+          failed_when: set_password_polcy_out.rc != 0 and 'already exists' not in set_password_policy_out.stderr and 'PSO successfully created' not in set_password_policy_out.stderr
+        - name: Apply password policy to Users group
+          shell: |
+            samba-tool domain passwordsettings pso apply UsersPSO Users
+          register: apply_password_policy_out
+          ignore_errors: true
+          changed_when: apply_password_policy_out.rc == 0 and 'applied to' in apply_password_policy_out.stderr
+          failed_when: apply_password_policy_out.rc != 0 and 'already applies' not in apply_password_policy_out.stderr and 'applied to' not in apply_password_policy_out.stderr
+
+    - name: Enable samba-ad-dc service at boot
+      service:
+        name: samba-ad-dc
+        enabled: yes

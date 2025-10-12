@@ -95,6 +95,7 @@
             msg: "Enabling icinga warnings on for hosts {{ ansible_play_hosts }}"
 
     - name: Synchronize GPOs
+      tags: [gpo]
       block:
         - name: Copy GPOs from the first host of the adcs group to the localhost
           synchronize:
@@ -111,3 +112,6 @@
             archive: true
           when: inventory_hostname != ansible_play_hosts_all[0]
         - name: Repair the ACLs of the GPOs
+          shell: |
+            samba-tool ntacl sysvolreset
+          ignore_errors: true

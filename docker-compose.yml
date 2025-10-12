@@ -36,7 +36,7 @@ services:
     networks:
       ansible-net:
         aliases:
-          - "ad.zam.haus"
+          - "ad.srv.zam.haus"
           - "ad001.srv.zam.haus"
         ipv4_address: 10.5.0.2
     cap_add:
@@ -55,7 +55,7 @@ services:
     networks:
       ansible-net:
         aliases:
-          - "ad.zam.haus"
+          - "ad.srv.zam.haus"
           - "ad002.srv.zam.haus"
         ipv4_address: 10.5.0.3
     cap_add:

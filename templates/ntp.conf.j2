@@ -9,5 +9,6 @@ logfile /var/log/ntp
 ntpsigndsocket /var/lib/samba/ntp_signd/
 restrict default kod nomodify notrap nopeer mssntp
 restrict 127.0.0.1
+restrict {{ (ansible_default_ipv4.address if 'docker' not in group_names else inventory_hostname) | quote }} mask 255.255.255.0
 restrict 0.pool.ntp.org mask 255.255.255.255 nomodify notrap nopeer noquery
 restrict 1.pool.ntp.org mask 255.255.255.255 nomodify notrap nopeer noquery

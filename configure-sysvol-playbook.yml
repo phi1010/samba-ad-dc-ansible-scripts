@@ -1,0 +1,45 @@
+- name: Gather all facts first
+  hosts: adcs
+  gather_facts: yes
+  tasks: [ ]
+- name: Test replication
+  hosts: adcs
+  gather_facts: false
+  become: yes
+  tasks:
+    - name: Set ADC volume settings
+      block:
+        - name: Set volumes to writable on first controller
+          when: inventory_hostname == ansible_play_hosts_all[0]
+          community.general.ini_file:
+            path: /etc/samba/smb.conf
+            state: present
+            exclusive: true
+            section: "{{item}}"
+            option: read only
+            value: No
+          loop:
+            - sysvol
+            - netlogon
+        - name: Set volumes to readonly on other controllers
+          when: inventory_hostname != ansible_play_hosts_all[0]
+          community.general.ini_file:
+            path: /etc/samba/smb.conf
+            state: present
+            exclusive: true
+            section: "{{item}}"
+            option: read only
+            value: Yes
+          loop:
+            - sysvol
+            - netlogon
+        - name: Restart service
+          service:
+            name: samba-ad-dc
+            state: restarted
+        - name: Wait for Samba-Ad-Dc Service to be started
+          wait_for:
+            port: 389
+            state: started
+            delay: 0
+            timeout: 5

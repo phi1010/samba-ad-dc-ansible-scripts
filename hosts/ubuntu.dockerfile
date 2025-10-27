@@ -1,4 +1,4 @@
-FROM docker.io/ubuntu:latest
+FROM docker.io/ubuntu:24.04
 RUN apt update && apt install locales openssh-server sudo python3 -y
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 RUN locale-gen en_US.UTF-8

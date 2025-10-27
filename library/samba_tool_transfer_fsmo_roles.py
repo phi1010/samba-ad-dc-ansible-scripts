@@ -41,8 +41,6 @@ def run_module():
     )
     result = dict(
         changed=False,
-        locals="",
-        msg="",
     )
     module = AnsibleModule(
         argument_spec=module_args,
@@ -57,9 +55,9 @@ def run_module():
         domain = module.params['domain']
         administrator_password = module.params['administrator_password']
         if not away_from_adcs and not transfer:
-            module.fail_json(error="Either away_from_adcs or transfer must be provided", **result)
+            module.fail_json(msg="Either away_from_adcs or transfer must be provided", **result)
         if transfer and not administrator_password:
-            module.fail_json(error="administrator_password must be provided when transfer is True", **result)
+            module.fail_json(msg="administrator_password must be provided when transfer is True", **result)
 
         target = find_target_adc(away_from_adcs, domain, module, result, transfer)
 
@@ -101,7 +99,7 @@ def run_module():
 
         if set(fsmoroles.keys()) != set(role_dict.keys()):
             module.fail_json(
-                error=(
+                msg=(
                         "Unexpected/Missing FSMO roles: "
                         + ", ".join(fsmoroles.keys())
                         + ";\nExpected: "
@@ -120,13 +118,11 @@ def run_module():
                  administrator_password], check_rc=True, encoding="utf-8")
     except Exception:
         # result["locals"] = pprint.pformat(locals(), indent=4)
-        module.fail_json(error=traceback.format_exc(), **result)
+        module.fail_json(msg=traceback.format_exc(), **result)
     else:
         # result["locals"] = pprint.pformat(locals(), indent=4)
         pass
 
-    # No change ops for this module, just a test
-    result['changed'] = False
     module.exit_json(**result)
 
 
